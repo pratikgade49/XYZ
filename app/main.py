@@ -1,3 +1,9 @@
+"""
+app/main.py
+
+Updated FastAPI application with write-back functionality
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,7 +11,7 @@ from datetime import datetime
 
 from app.config import get_settings
 from app.utils.logger import setup_logger, get_logger
-from app.api.routes import health, xyz_analysis
+from app.api.routes import health, xyz_analysis, xyz_write
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,7 +27,20 @@ logger = get_logger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="API for fetching SAP IBP data and performing XYZ segmentation analysis",
+    description="""
+    API for fetching SAP IBP data and performing XYZ segmentation analysis.
+    
+    ## Features
+    - Fetch product data from SAP IBP
+    - Perform XYZ segmentation analysis
+    - Export analysis results (CSV, JSON, Excel)
+    - Write XYZ segments back to SAP IBP
+    
+    ## XYZ Segmentation
+    - **X Segment**: Stable demand (CV ≤ 10%)
+    - **Y Segment**: Moderate variability (10% < CV ≤ 25%)
+    - **Z Segment**: High variability (CV > 25%)
+    """,
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -38,6 +57,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router)
 app.include_router(xyz_analysis.router)
+app.include_router(xyz_write.router)
 
 
 @app.on_event("startup")
@@ -45,6 +65,12 @@ async def startup_event():
     """Application startup"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"Write operations enabled: {settings.ENABLE_WRITE_OPERATIONS}")
+    
+    if settings.ENABLE_WRITE_OPERATIONS:
+        logger.info(f"Write API URL: {settings.SAP_WRITE_API_URL}")
+        logger.info(f"Planning Area: {settings.SAP_PLANNING_AREA}")
+        logger.info(f"XYZ Key Figure: {settings.SAP_XYZ_KEY_FIGURE}")
 
 
 @app.on_event("shutdown")
